@@ -4,13 +4,293 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pendataan Wisata Batang</title>
+    <meta name="description" content="Platform terpadu untuk mencatat dan menganalisis data kunjungan wisata di 33 Daya Tarik Wisata Kabupaten Batang.">
+
+    <!-- Preconnect untuk mempercepat DNS lookup ke GAS -->
+    <link rel="preconnect" href="https://script.google.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        /* Menghilangkan margin dan membuat iframe memenuhi seluruh layar */
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-        iframe { width: 100%; height: 100%; border: none; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0A1628 0%, #0D2147 50%, #0A1628 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Animasi partikel latar */
+        .bg-particles {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.08;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            from { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10%  { opacity: 0.08; }
+            90%  { opacity: 0.08; }
+            to   { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+
+        /* Container utama */
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 48px 32px;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        /* Logo/Icon */
+        .brand-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #0057FF, #4D8AFF);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(0, 87, 255, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 8px 32px rgba(0, 87, 255, 0.4); transform: scale(1); }
+            50%       { box-shadow: 0 12px 48px rgba(0, 87, 255, 0.6); transform: scale(1.04); }
+        }
+
+        .brand-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .brand-subtitle {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.55);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .brand-subtitle strong {
+            color: #4D8AFF;
+        }
+
+        /* Progress bar */
+        .progress-wrap {
+            background: rgba(255,255,255,0.08);
+            border-radius: 99px;
+            height: 6px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0057FF, #4D8AFF, #00C2A8);
+            background-size: 200% 100%;
+            border-radius: 99px;
+            animation: progress-fill 2.5s ease-out forwards, shimmer 1.5s linear infinite;
+            width: 0%;
+        }
+
+        @keyframes progress-fill {
+            0%   { width: 0%; }
+            30%  { width: 45%; }
+            60%  { width: 72%; }
+            85%  { width: 88%; }
+            100% { width: 95%; }
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .status-text {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.45);
+            animation: blink-status 2s ease-in-out infinite;
+        }
+
+        @keyframes blink-status {
+            0%, 100% { opacity: 0.45; }
+            50%       { opacity: 0.8; }
+        }
+
+        /* Info box */
+        .info-box {
+            margin-top: 48px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .info-box-icon {
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .info-box-text {
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.6;
+        }
+
+        /* Tombol fallback jika redirect lambat */
+        .fallback-btn {
+            display: none;
+            margin-top: 28px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #0057FF, #4D8AFF);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .fallback-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 87, 255, 0.4);
+        }
+
+        @keyframes btn-appear {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <iframe src="https://script.google.com/macros/s/AKfycbzV2OmwG0Vd0Yw3BZgWHDzBX2gYzdodFLyLu-PKLDA1qAwudntNqjYAjLLh-ZDrYze0/exec"></iframe>
+
+    <!-- Partikel latar belakang -->
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="container">
+        <div class="brand-icon">🗺️</div>
+        <h1 class="brand-title">Portal Pendataan DTW</h1>
+        <p class="brand-subtitle">
+            Kabupaten <strong>Batang</strong> · Disparpora<br>
+            Menghubungkan ke sistem…
+        </p>
+
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <p class="status-text" id="status-text">⏳ Memuat portal…</p>
+
+        <!-- Tombol fallback jika redirect membutuhkan waktu lebih lama -->
+        <a class="fallback-btn" id="fallback-btn"
+           href="https://script.google.com/macros/s/AKfycbzd8x8Tauzyyu9V47wc47T0lQT8OIM4XxAb0Y_NyH-zfDuyC4WK0LTD3DfWsKizHc59/exec"
+           target="_top">
+            🚀 Buka Portal Sekarang
+        </a>
+
+        <div class="info-box">
+            <span class="info-box-icon">🔒</span>
+            <span class="info-box-text">
+                Portal ini dilindungi PIN. Pendata menggunakan PIN Pendata,
+                Admin menggunakan PIN Admin. Sesi berlaku 8 jam.
+            </span>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // URL Google Apps Script (GAS) — ganti jika deployment berubah
+        // ================================================================
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd8x8Tauzyyu9V47wc47T0lQT8OIM4XxAb0Y_NyH-zfDuyC4WK0LTD3DfWsKizHc59/exec';
+
+        // ================================================================
+        // Buat partikel animasi latar
+        // ================================================================
+        (function createParticles() {
+            const container = document.getElementById('particles');
+            const colors = ['#0057FF', '#4D8AFF', '#00C2A8', '#FF3B5C'];
+            for (let i = 0; i < 14; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                const size = Math.random() * 60 + 20;
+                p.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${Math.random() * 100}%;
+                    background: ${colors[Math.floor(Math.random() * colors.length)]};
+                    animation-duration: ${Math.random() * 15 + 10}s;
+                    animation-delay: ${Math.random() * -15}s;
+                `;
+                container.appendChild(p);
+            }
+        })();
+
+        // ================================================================
+        // Status messages yang berganti-ganti
+        // ================================================================
+        const statusMessages = [
+            '⏳ Memuat portal…',
+            '🔌 Menghubungkan ke server…',
+            '📊 Menyiapkan data kunjungan…',
+            '🗺️ Memuat 33 DTW Kabupaten Batang…',
+            '✅ Hampir siap…',
+        ];
+        let msgIdx = 0;
+        const statusEl = document.getElementById('status-text');
+        const msgInterval = setInterval(() => {
+            msgIdx = (msgIdx + 1) % statusMessages.length;
+            statusEl.textContent = statusMessages[msgIdx];
+        }, 600);
+
+        // ================================================================
+        // Redirect ke GAS setelah halaman ini dimuat
+        // Menggunakan replace() agar tombol BACK di browser tidak kembali
+        // ke loading screen, melainkan ke halaman sebelumnya.
+        // ================================================================
+        function doRedirect() {
+            clearInterval(msgInterval);
+            statusEl.textContent = '✅ Mengalihkan…';
+            window.location.replace(GAS_URL);
+        }
+
+        // Langsung redirect tanpa delay agar secepat mungkin
+        doRedirect();
+
+        // Fallback: tampilkan tombol manual jika redirect tidak berjalan
+        // (misalnya browser memblokir redirect)
+        setTimeout(() => {
+            const btn = document.getElementById('fallback-btn');
+            btn.style.display = 'inline-block';
+            btn.style.animation = 'btn-appear 0.4s ease-out forwards';
+            statusEl.textContent = '⚠️ Klik tombol di atas jika tidak otomatis teralihkan';
+        }, 3000);
+    </script>
 </body>
 </html>
