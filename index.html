@@ -7,32 +7,63 @@
   <meta name="description" content="Platform terpadu untuk mencatat dan menganalisis data kunjungan wisata di 33 Daya Tarik Wisata Kabupaten Batang.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
       --navy:    #050E1F;
       --blue:    #0057FF;
       --blue-lt: #4D8AFF;
       --teal:    #00C2A8;
-      --red:     #FF3B5C;
-      --text:    rgba(255,255,255,0.90);
       --muted:   rgba(255,255,255,0.42);
-      --card-bg: rgba(255,255,255,0.04);
       --border:  rgba(255,255,255,0.09);
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body {
-      height: 100%;
-      font-family: 'DM Sans', sans-serif;
-      background: var(--navy);
-      color: var(--text);
+      height: 100%; width: 100%;
       overflow: hidden;
+      background: var(--navy);
+      font-family: 'DM Sans', sans-serif;
+      color: #fff;
     }
 
-    /* ── Mesh background ─────────────────────────────────── */
+    /* ── iframe utama — ini yang memuat GAS ── */
+    #gas-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 10;
+      background: transparent;
+    }
+    #gas-frame.loaded {
+      opacity: 1;
+    }
+
+    /* ── Loading overlay — tampil di depan iframe saat memuat ── */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Mesh background */
     .mesh {
       position: fixed; inset: 0; z-index: 0;
       background:
@@ -41,17 +72,6 @@
         radial-gradient(ellipse 50% 40% at 60% 10%,  rgba(77,138,255,.10) 0%, transparent 50%),
         var(--navy);
     }
-
-    /* Noise texture overlay */
-    .mesh::after {
-      content: '';
-      position: absolute; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-      opacity: .6;
-      pointer-events: none;
-    }
-
-    /* ── Grid lines ─────────────────────────────────────── */
     .grid-lines {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background-image:
@@ -61,292 +81,228 @@
       mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 80%);
     }
 
-    /* ── Orbiting ring ──────────────────────────────────── */
+    /* Orbit rings */
     .orbit-wrap {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       display: flex; align-items: center; justify-content: center;
     }
     .orbit-ring {
-      width: 480px; height: 480px;
-      border-radius: 50%;
+      width: 480px; height: 480px; border-radius: 50%;
       border: 1px solid rgba(77,138,255,.10);
       position: absolute;
       animation: spin 40s linear infinite;
     }
     .orbit-ring::after {
-      content: '';
-      position: absolute; top: -4px; left: 50%;
+      content: ''; position: absolute; top: -4px; left: 50%;
       width: 8px; height: 8px; border-radius: 50%;
-      background: var(--blue-lt);
-      transform: translateX(-50%);
+      background: var(--blue-lt); transform: translateX(-50%);
       box-shadow: 0 0 12px 4px rgba(77,138,255,.5);
     }
     .orbit-ring-2 {
       width: 660px; height: 660px;
-      border: 1px solid rgba(0,194,168,.06);
+      border-color: rgba(0,194,168,.06);
       animation: spin 65s linear infinite reverse;
     }
-    .orbit-ring-2::after {
-      background: var(--teal);
-      box-shadow: 0 0 10px 3px rgba(0,194,168,.4);
-    }
+    .orbit-ring-2::after { background: var(--teal); box-shadow: 0 0 10px 3px rgba(0,194,168,.4); }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Main stage ─────────────────────────────────────── */
-    .stage {
+    /* Content inside overlay */
+    .overlay-content {
       position: relative; z-index: 1;
-      height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 0;
-      padding: 2rem;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center;
     }
 
-    /* ── Badge ──────────────────────────────────────────── */
     .badge {
       display: inline-flex; align-items: center; gap: 8px;
       background: rgba(0,87,255,.15);
       border: 1px solid rgba(77,138,255,.3);
-      border-radius: 99px;
-      padding: 5px 14px;
-      font-family: 'Syne', sans-serif;
-      font-size: .72rem;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--blue-lt);
-      margin-bottom: 28px;
-      opacity: 0;
-      animation: fade-up .6s .1s ease-out forwards;
+      border-radius: 99px; padding: 5px 14px;
+      font-family: 'Syne', sans-serif; font-size: .72rem;
+      font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--blue-lt); margin-bottom: 28px;
+      animation: fade-up .5s .1s ease-out both;
     }
     .badge-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--teal);
+      width: 6px; height: 6px; border-radius: 50%; background: var(--teal);
       box-shadow: 0 0 6px 2px rgba(0,194,168,.6);
       animation: dot-pulse 1.6s ease-in-out infinite;
     }
     @keyframes dot-pulse {
-      0%,100% { opacity: 1; transform: scale(1); }
-      50%      { opacity: .5; transform: scale(.7); }
+      0%,100%{ opacity:1; transform:scale(1); }
+      50%    { opacity:.5; transform:scale(.7); }
     }
 
-    /* ── Logo ───────────────────────────────────────────── */
     .logo {
-      width: 72px; height: 72px;
-      border-radius: 20px;
+      width: 72px; height: 72px; border-radius: 20px;
       background: linear-gradient(140deg, #0057FF 0%, #00C2A8 100%);
       display: flex; align-items: center; justify-content: center;
-      font-size: 2rem;
-      margin-bottom: 20px;
+      font-size: 2rem; margin-bottom: 20px;
       box-shadow: 0 0 0 1px rgba(77,138,255,.25), 0 16px 48px rgba(0,87,255,.35);
-      opacity: 0;
-      animation: fade-up .6s .2s ease-out forwards, logo-glow 3s 1s ease-in-out infinite;
+      animation: fade-up .5s .2s ease-out both, logo-glow 3s 1s ease-in-out infinite;
     }
     @keyframes logo-glow {
-      0%,100% { box-shadow: 0 0 0 1px rgba(77,138,255,.25), 0 16px 48px rgba(0,87,255,.35); }
-      50%      { box-shadow: 0 0 0 1px rgba(0,194,168,.35), 0 20px 60px rgba(0,194,168,.30); }
+      0%,100%{ box-shadow: 0 0 0 1px rgba(77,138,255,.25), 0 16px 48px rgba(0,87,255,.35); }
+      50%    { box-shadow: 0 0 0 1px rgba(0,194,168,.35), 0 20px 60px rgba(0,194,168,.30); }
     }
 
-    /* ── Heading ────────────────────────────────────────── */
     .heading {
       font-family: 'Syne', sans-serif;
       font-size: clamp(1.7rem, 4vw, 2.5rem);
-      font-weight: 800;
-      letter-spacing: -1px;
-      line-height: 1.1;
-      text-align: center;
+      font-weight: 800; letter-spacing: -1px; line-height: 1.1;
       margin-bottom: 10px;
-      opacity: 0;
-      animation: fade-up .6s .3s ease-out forwards;
+      animation: fade-up .5s .3s ease-out both;
     }
     .heading em {
       font-style: normal;
       background: linear-gradient(90deg, var(--blue-lt), var(--teal));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
     }
 
     .sub {
-      font-size: .88rem;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.7;
-      max-width: 340px;
-      margin-bottom: 40px;
-      opacity: 0;
-      animation: fade-up .6s .4s ease-out forwards;
+      font-size: .88rem; color: var(--muted); line-height: 1.7;
+      max-width: 340px; margin-bottom: 36px;
+      animation: fade-up .5s .4s ease-out both;
     }
 
-    /* ── Progress ───────────────────────────────────────── */
     .progress-outer {
       width: 280px;
-      opacity: 0;
-      animation: fade-up .6s .5s ease-out forwards;
+      animation: fade-up .5s .5s ease-out both;
     }
     .progress-track {
-      height: 3px;
-      background: rgba(255,255,255,.08);
-      border-radius: 99px;
-      overflow: hidden;
-      margin-bottom: 12px;
+      height: 3px; background: rgba(255,255,255,.08);
+      border-radius: 99px; overflow: hidden; margin-bottom: 12px;
     }
     .progress-fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 99px;
+      height: 100%; width: 0%; border-radius: 99px;
       background: linear-gradient(90deg, var(--blue), var(--teal));
       background-size: 200% 100%;
-      animation: fill 3.5s cubic-bezier(.4,0,.2,1) forwards,
-                 shimmer 1.8s linear infinite;
+      animation: fill 8s cubic-bezier(.4,0,.2,1) forwards, shimmer 1.8s linear infinite;
     }
+    /* Progress melambat di 90% — menunggu iframe load */
     @keyframes fill {
-      0%  { width: 0%; }
-      25% { width: 38%; }
-      55% { width: 65%; }
-      80% { width: 84%; }
-      100%{ width: 96%; }
+      0%  { width: 0%;  }
+      20% { width: 35%; }
+      50% { width: 60%; }
+      75% { width: 80%; }
+      95% { width: 90%; }
+      100%{ width: 90%; }
     }
+    /* Saat iframe load, JS akan set width 100% */
     @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+      0%  { background-position: 200% 0; }
+      100%{ background-position: -200% 0; }
     }
+
     .status {
-      font-size: .75rem;
-      color: var(--muted);
-      text-align: center;
-      letter-spacing: .02em;
-      min-height: 1.2em;
+      font-size: .75rem; color: var(--muted); text-align: center;
+      letter-spacing: .02em; min-height: 1.2em;
       transition: opacity .2s;
     }
 
-    /* ── Stat pills ─────────────────────────────────────── */
-    .pills {
-      display: flex; gap: 10px; margin-top: 44px;
-      opacity: 0;
-      animation: fade-up .6s .7s ease-out forwards;
-    }
-    .pill {
-      padding: 8px 16px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      font-size: .75rem;
-      color: var(--muted);
-      display: flex; align-items: center; gap: 6px;
-      white-space: nowrap;
-    }
-    .pill-dot { width:5px; height:5px; border-radius:50%; }
-    .pill-dot.blue { background: var(--blue-lt); }
-    .pill-dot.teal { background: var(--teal); }
-
-    /* ── Fallback button ────────────────────────────────── */
+    /* Fallback jika iframe gagal load */
     .fallback-wrap {
-      margin-top: 24px;
-      opacity: 0;
-      pointer-events: none;
+      margin-top: 24px; opacity: 0; pointer-events: none;
       transition: opacity .4s;
+      animation: fade-up .5s .6s ease-out both;
     }
-    .fallback-wrap.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .fallback-wrap.visible { opacity: 1; pointer-events: auto; }
+
     .fallback-btn {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 10px 24px;
       background: linear-gradient(135deg, var(--blue), #0047CC);
-      color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .85rem;
-      font-weight: 500;
-      text-decoration: none;
-      border-radius: 10px;
-      border: 1px solid rgba(77,138,255,.3);
-      cursor: pointer;
-      transition: transform .15s, box-shadow .15s;
+      color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: .85rem; font-weight: 500; text-decoration: none;
+      border-radius: 10px; border: 1px solid rgba(77,138,255,.3);
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
     }
     .fallback-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0,87,255,.4);
     }
 
+    .pills {
+      display: flex; gap: 10px; margin-top: 40px;
+      animation: fade-up .5s .7s ease-out both;
+    }
+    .pill {
+      padding: 7px 14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border); border-radius: 99px;
+      font-size: .73rem; color: var(--muted);
+      display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .pill-dot { width:5px; height:5px; border-radius:50%; }
+    .pill-dot.blue { background: var(--blue-lt); }
+    .pill-dot.teal { background: var(--teal); }
+
+    .info-bar {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: 10px; padding: 9px 16px;
+      font-size: .73rem; color: var(--muted); white-space: nowrap;
+      z-index: 21; animation: fade-up .5s .9s ease-out both;
+    }
+
     @keyframes fade-up {
       from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
-    /* ── Bottom info ────────────────────────────────────── */
-    .info {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 8px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 9px 16px;
-      font-size: .73rem;
-      color: var(--muted);
-      white-space: nowrap;
-      z-index: 2;
-      opacity: 0;
-      animation: fade-up .6s .9s ease-out forwards;
-    }
-    .info svg { flex-shrink: 0; opacity: .6; }
   </style>
 </head>
 <body>
 
-  <!-- Background layers -->
-  <div class="mesh"></div>
-  <div class="grid-lines"></div>
-  <div class="orbit-wrap">
-    <div class="orbit-ring"></div>
-    <div class="orbit-ring orbit-ring-2"></div>
+  <!-- iframe: memuat GAS. Posisi fixed di belakang overlay, z-index 10 -->
+  <iframe
+    id="gas-frame"
+    src="https://script.google.com/macros/s/AKfycbxJQFLgfCVMqWbcvxEu1MVXjPOhpVoxANo9x87htP1qgelizOoU-w054FICw5Ch1Zdv/exec"
+    title="Portal Pendataan DTW Batang"
+    allowfullscreen
+    allow="clipboard-write"
+  ></iframe>
+
+  <!-- Loading overlay tampil di depan iframe -->
+  <div id="loading-overlay">
+    <div class="mesh"></div>
+    <div class="grid-lines"></div>
+    <div class="orbit-wrap">
+      <div class="orbit-ring"></div>
+      <div class="orbit-ring orbit-ring-2"></div>
+    </div>
+
+    <div class="overlay-content">
+      <div class="badge"><span class="badge-dot"></span>Disparpora · Kabupaten Batang</div>
+      <div class="logo">🗺️</div>
+      <h1 class="heading">Portal Pendataan<br><em>DTW Batang</em></h1>
+      <p class="sub">33 Daya Tarik Wisata · Data kunjungan terpadu<br>Memuat sistem, harap tunggu sebentar…</p>
+
+      <div class="progress-outer">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="status" id="status-text">Menghubungkan ke server…</p>
+      </div>
+
+      <div class="fallback-wrap" id="fallback-wrap">
+        <a class="fallback-btn"
+           href="https://script.google.com/macros/s/AKfycbxJQFLgfCVMqWbcvxEu1MVXjPOhpVoxANo9x87htP1qgelizOoU-w054FICw5Ch1Zdv/exec"
+           target="_top">
+          🚀 Buka Portal Langsung
+        </a>
+      </div>
+
+      <div class="pills">
+        <div class="pill"><span class="pill-dot blue"></span>PIN Pendata</div>
+        <div class="pill"><span class="pill-dot teal"></span>PIN Admin</div>
+        <div class="pill">Sesi 8 jam</div>
+      </div>
+    </div>
   </div>
 
-  <!-- Main content -->
-  <main class="stage">
-    <div class="badge">
-      <span class="badge-dot"></span>
-      Disparpora · Kabupaten Batang
-    </div>
-
-    <div class="logo">🗺️</div>
-
-    <h1 class="heading">
-      Portal Pendataan<br><em>DTW Batang</em>
-    </h1>
-
-    <p class="sub">
-      33 Daya Tarik Wisata · Data kunjungan terpadu<br>
-      Memuat sistem, harap tunggu sebentar…
-    </p>
-
-    <div class="progress-outer">
-      <div class="progress-track">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <p class="status" id="status-text">Menghubungkan ke server…</p>
-    </div>
-
-    <!-- Fallback — muncul jika loading >5 detik -->
-    <div class="fallback-wrap" id="fallback-wrap">
-      <a class="fallback-btn" href="/" id="fallback-btn">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a5 5 0 1 1 0 10A5 5 0 0 1 8 3zm-.5 2v3.25l2.5 1.5.75-1.25-2-1.2V5H7.5z"/>
-        </svg>
-        Muat Ulang
-      </a>
-    </div>
-
-    <div class="pills">
-      <div class="pill"><span class="pill-dot blue"></span>PIN Pendata</div>
-      <div class="pill"><span class="pill-dot teal"></span>PIN Admin</div>
-      <div class="pill">Sesi 8 jam</div>
-    </div>
-  </main>
-
-  <!-- Bottom info bar -->
-  <div class="info">
+  <div class="info-bar">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
       <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a5 5 0 1 1 0 10A5 5 0 0 1 8 3zm-.75 2.75v1.5h1.5v-1.5h-1.5zm0 3v4h1.5v-4h-1.5z"/>
     </svg>
@@ -354,9 +310,15 @@
   </div>
 
   <script>
-    // ──────────────────────────────────────────────────────────────────
-    // Status messages — berganti-ganti selama loading
-    // ──────────────────────────────────────────────────────────────────
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxJQFLgfCVMqWbcvxEu1MVXjPOhpVoxANo9x87htP1qgelizOoU-w054FICw5Ch1Zdv/exec';
+
+    const frame     = document.getElementById('gas-frame');
+    const overlay   = document.getElementById('loading-overlay');
+    const statusEl  = document.getElementById('status-text');
+    const progressEl= document.getElementById('progress-fill');
+    const fallback  = document.getElementById('fallback-wrap');
+
+    // Status messages
     const messages = [
       'Menghubungkan ke server…',
       'Menyiapkan data kunjungan…',
@@ -364,7 +326,6 @@
       'Hampir siap…',
     ];
     let mi = 0;
-    const statusEl = document.getElementById('status-text');
     const msgTimer = setInterval(() => {
       mi = (mi + 1) % messages.length;
       statusEl.style.opacity = '0';
@@ -372,16 +333,34 @@
         statusEl.textContent = messages[mi];
         statusEl.style.opacity = '1';
       }, 200);
-    }, 900);
+    }, 1200);
 
-    // ──────────────────────────────────────────────────────────────────
-    // Fallback: tampilkan tombol muat ulang jika >5 detik
-    // ──────────────────────────────────────────────────────────────────
-    setTimeout(() => {
-      document.getElementById('fallback-wrap').classList.add('visible');
-      statusEl.textContent = 'Memuat lebih lama dari biasanya…';
+    // Saat iframe selesai load — sembunyikan overlay
+    frame.addEventListener('load', () => {
       clearInterval(msgTimer);
-    }, 5000);
+      // Selesaikan progress bar ke 100%
+      progressEl.style.animation = 'none';
+      progressEl.style.transition = 'width 0.4s ease';
+      progressEl.style.width = '100%';
+      statusEl.textContent = '✅ Portal siap!';
+
+      // Sembunyikan overlay setelah 500ms agar transisi terasa mulus
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        frame.classList.add('loaded');
+      }, 500);
+    });
+
+    // Fallback: jika iframe tidak load dalam 12 detik
+    // (bisa karena browser blokir third-party iframe)
+    const fallbackTimer = setTimeout(() => {
+      clearInterval(msgTimer);
+      fallback.classList.add('visible');
+      statusEl.textContent = '⚠️ Klik tombol di bawah jika portal tidak muncul';
+    }, 12000);
+
+    // Cleanup fallback timer jika iframe berhasil load
+    frame.addEventListener('load', () => clearTimeout(fallbackTimer), { once: true });
   </script>
 
 </body>
