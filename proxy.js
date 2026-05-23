@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const GAS_BASE =
-  'https://script.google.com/macros/s/AKfycbxJQFLgfCVMqWbcvxEu1MVXjPOhpVoxANo9x87htP1qgelizOoU-w054FICw5Ch1Zdv/exec';
+  'https://script.google.com/macros/s/AKfycbzV8Eq8Rl4qd65MCcu4zVqGa29dKcgXKPMZ2FroQH7oXbxm_GVa32Lu99vT3nd9kn_O/exec';
 
 export const config = { runtime: 'edge' };
 
