@@ -1,9 +1,0 @@
-{
-  "name": "pendataan-dtw-batang",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Portal Pendataan DTW Kabupaten Batang — Reverse proxy ke Google Apps Script",
-  "engines": {
-    "node": ">=18"
-  }
-}
